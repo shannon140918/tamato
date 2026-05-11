@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-store" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>每日专注</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar">
+        <div class="brand-block">
+          <img class="brand-rocket" src="assets/study-buddy.svg" alt="" />
+          <div>
+            <p class="eyebrow">Study Base</p>
+            <h1>学习小基地</h1>
+            <p class="hero-copy">选一个小任务，完成一个番茄时间段，收集一颗学习星星。</p>
+          </div>
+        </div>
+        <div class="top-stats">
+          <button id="aiSettingsBtn" class="ai-settings-card jump-card" type="button" aria-label="配置AI错题识别">
+            <span>AI错题</span>
+            <strong id="aiStatusText">未配置</strong>
+            <small>设置</small>
+          </button>
+          <button id="dateJumpBtn" class="date-card jump-card" type="button" aria-label="查看今天的学习日历">
+            <span id="weekday">星期</span>
+            <strong id="todayDate">--</strong>
+            <small>看计划</small>
+          </button>
+          <button id="starJumpBtn" class="star-card jump-card" type="button" aria-label="查看星星愿望和奖学金">
+            <span id="homeWishCard" class="wish-badge" hidden>
+              <span id="homeWishName">看电影</span>
+            </span>
+            <span>学习星星</span>
+            <strong id="focusStars">0</strong>
+            <small>去兑换</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <section class="timer-panel" aria-label="番茄钟">
+          <div class="timer-header">
+            <div>
+              <p class="section-kicker">Focus Zone | 专注时钟</p>
+              <h2 id="timerModeLabel">专注挑战</h2>
+              <p id="focusMessage" class="focus-message">选择任务后开始挑战。</p>
+            </div>
+            <div class="round-counter">
+              <span>番茄数</span>
+              <strong id="pomodoroCount">0</strong>
+            </div>
+          </div>
+
+          <div class="mode-tabs" role="tablist" aria-label="番茄钟模式">
+            <button class="mode-tab active" data-mode="focus" type="button">专注</button>
+            <button class="mode-tab" data-mode="short" type="button">短休息</button>
+            <button class="mode-tab" data-mode="long" type="button">长休息</button>
+          </div>
+
+          <div class="timer-face">
+            <svg viewBox="0 0 220 220" aria-hidden="true">
+              <circle class="track" cx="110" cy="110" r="96"></circle>
+              <circle id="progressRing" class="progress" cx="110" cy="110" r="96"></circle>
+            </svg>
+            <div class="time-readout">
+              <span id="timeDisplay">25:00</span>
+              <small id="timerStatus">准备开始</small>
+            </div>
+          </div>
+
+          <div class="timer-actions">
+            <button id="startPauseBtn" class="primary-btn" type="button">开始</button>
+            <button id="resetBtn" class="ghost-btn" type="button">重置</button>
+            <button id="skipBtn" class="ghost-btn" type="button">跳过</button>
+          </div>
+
+          <form id="settingsForm" class="settings-grid">
+            <label>
+              专注
+              <input id="focusMinutes" type="number" min="1" max="180" value="25" />
+            </label>
+            <label>
+              短休息
+              <input id="shortMinutes" type="number" min="1" max="60" value="5" />
+            </label>
+            <label>
+              长休息
+              <input id="longMinutes" type="number" min="1" max="90" value="15" />
+            </label>
+          </form>
+
+          <section id="mistakeTips" class="mistake-tips" aria-label="易错点提示" role="button" tabindex="0">
+            <div class="mistake-tips-head">
+              <div>
+                <p class="section-kicker">Mistake Tips</p>
+                <h3><span id="mistakeSubject">语文</span>易错点</h3>
+              </div>
+              <span id="mistakePage" class="mistake-page">1/3</span>
+            </div>
+            <ul id="mistakeTipList"></ul>
+          </section>
+        </section>
+
+        <section class="home-goal-panel" aria-label="主页今日目标">
+          <div class="panel-title-row compact-title-row">
+            <div>
+              <p class="section-kicker">Goal Card</p>
+              <h2>今日目标卡</h2>
+            </div>
+            <button id="openPlanFromGoal" class="small-btn" type="button">设置目标</button>
+          </div>
+          <div id="homeGoalList" class="home-goal-list"></div>
+          <p id="emptyHomeGoals" class="empty-state">还没有今日目标，先设置一个小挑战。</p>
+        </section>
+
+        <section class="todo-panel" aria-label="每天待办事项">
+          <div class="panel-title-row">
+            <div>
+              <p class="section-kicker">Task List</p>
+              <h2>今日小任务</h2>
+            </div>
+            <span id="todoSummary">0/0</span>
+          </div>
+
+          <form id="todoForm" class="inline-form">
+            <input id="todoInput" type="text" placeholder="写下今天要完成的事" autocomplete="off" />
+            <input id="todoMinutes" type="number" min="5" step="5" placeholder="预计分钟" aria-label="需要完成时间" />
+            <button type="submit">添加</button>
+          </form>
+
+          <ul id="todoList" class="todo-list" aria-live="polite"></ul>
+          <p id="emptyTodos" class="empty-state">今天还没有小任务。</p>
+        </section>
+
+        <section class="reminder-panel" aria-label="定时提醒" hidden>
+          <div class="panel-title-row">
+            <div>
+              <p class="section-kicker">学习提醒</p>
+              <h2>别忘记</h2>
+            </div>
+            <button id="notifyBtn" class="small-btn" type="button">开启通知</button>
+          </div>
+
+          <form id="reminderForm" class="reminder-form">
+            <input id="reminderText" type="text" placeholder="提醒内容" autocomplete="off" />
+            <input id="reminderTime" type="time" />
+            <button type="submit">保存</button>
+          </form>
+
+          <ul id="reminderList" class="reminder-list" aria-live="polite"></ul>
+          <p id="emptyReminders" class="empty-state">还没有设置提醒。</p>
+        </section>
+
+        <section id="wishPage" class="wish-panel embedded-panel" aria-label="小星星愿望和奖学金" hidden>
+          <div class="panel-title-row">
+            <div>
+              <p class="section-kicker">星星愿望</p>
+              <h2>愿望和奖学金</h2>
+            </div>
+            <div class="embedded-actions">
+              <button class="back-home-btn" type="button" data-close-page>返回主页</button>
+              <div class="scholarship-total">
+                <span>奖学金</span>
+                <strong id="scholarshipBalance">0.00</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="wish-layout">
+            <div>
+              <form id="wishForm" class="wish-form">
+                <input id="wishTitle" type="text" placeholder="写下一个小愿望，例如：周末看一场电影" autocomplete="off" />
+                <input id="wishCost" type="number" min="1" step="1" placeholder="星星数" />
+                <button type="submit">加入愿望</button>
+              </form>
+
+              <ul id="wishList" class="wish-list" aria-live="polite"></ul>
+              <p id="emptyWishes" class="empty-state">还没有愿望，先写下一个想实现的小目标。</p>
+            </div>
+
+            <div class="scholarship-box">
+              <h3>奖学金储蓄罐</h3>
+              <form id="scholarshipForm" class="scholarship-form">
+                <label>
+                  每多少颗星兑换 1 元
+                  <input id="scholarshipRate" type="number" min="1" step="1" value="10" />
+                </label>
+                <label>
+                  本次兑换星星
+                  <input id="scholarshipStars" type="number" min="1" step="1" placeholder="例如：20" />
+                </label>
+                <button type="submit">兑换奖学金</button>
+              </form>
+
+              <ul id="scholarshipList" class="scholarship-list" aria-live="polite"></ul>
+              <p id="emptyScholarship" class="empty-state">还没有奖学金记录。</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="calendarPage" class="calendar-panel embedded-panel" aria-label="日历学习计划" hidden>
+          <div class="panel-title-row">
+            <div>
+              <p class="section-kicker">学习日历</p>
+              <h2>本月计划</h2>
+            </div>
+            <div class="embedded-actions">
+              <button class="back-home-btn" type="button" data-close-page>返回主页</button>
+              <div class="calendar-nav">
+                <button id="prevMonthBtn" class="icon-btn" type="button" aria-label="上个月">‹</button>
+                <strong id="calendarMonth">--</strong>
+                <button id="nextMonthBtn" class="icon-btn" type="button" aria-label="下个月">›</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="calendar-layout">
+            <div>
+              <div class="calendar-weekdays" aria-hidden="true">
+                <span>一</span>
+                <span>二</span>
+                <span>三</span>
+                <span>四</span>
+                <span>五</span>
+                <span>六</span>
+                <span>日</span>
+              </div>
+              <div id="calendarGrid" class="calendar-grid" aria-label="月历"></div>
+            </div>
+
+            <div class="study-side">
+              <div class="selected-day">
+                <span>当前日期</span>
+                <strong id="selectedPlanDate">--</strong>
+              </div>
+
+              <form id="studyForm" class="study-form">
+                <input id="studyTitle" type="text" placeholder="学习内容，例如：英语听力" autocomplete="off" />
+                <input id="studyMinutes" type="number" min="5" step="5" placeholder="分钟" />
+                <textarea id="studyNote" rows="3" placeholder="备注，可选"></textarea>
+                <button type="submit">添加计划</button>
+              </form>
+
+              <ul id="studyPlanList" class="study-plan-list" aria-live="polite"></ul>
+              <p id="emptyStudyPlans" class="empty-state">这一天还没有学习计划。</p>
+            </div>
+          </div>
+
+          <section class="goals-panel plan-goals-panel" aria-label="学习目标和奖励">
+            <div class="panel-title-row">
+            <div>
+              <p class="section-kicker">今日挑战</p>
+              <h2>学习星星目标</h2>
+            </div>
+            <span id="goalSummary">0/0</span>
+          </div>
+
+            <div class="goal-board">
+            <form class="goal-card" data-goal-type="daily">
+              <div>
+                <span class="goal-badge">每日</span>
+                <strong>今天的小目标</strong>
+              </div>
+              <input type="text" placeholder="例如：读完 10 页书" autocomplete="off" />
+              <button type="submit">添加 +1 星</button>
+            </form>
+
+            <form class="goal-card" data-goal-type="weekly">
+              <div>
+                <span class="goal-badge">每周</span>
+                <strong>本周的大挑战</strong>
+              </div>
+              <input type="text" placeholder="例如：完成 5 次英语听力" autocomplete="off" />
+              <button type="submit">添加 +3 星</button>
+            </form>
+
+            <form class="goal-card" data-goal-type="monthly">
+              <div>
+                <span class="goal-badge">每月</span>
+                <strong>本月成长目标</strong>
+              </div>
+              <input type="text" placeholder="例如：完成一本练习册" autocomplete="off" />
+              <button type="submit">添加 +8 星</button>
+            </form>
+          </div>
+
+            <div class="goal-layout">
+            <div>
+              <h3>当前目标</h3>
+              <ul id="goalList" class="goal-list" aria-live="polite"></ul>
+              <p id="emptyGoals" class="empty-state">还没有学习目标。</p>
+            </div>
+            <div>
+              <h3>奖励记录</h3>
+              <ul id="rewardList" class="reward-list" aria-live="polite"></ul>
+              <p id="emptyRewards" class="empty-state">完成目标后会出现奖励记录。</p>
+            </div>
+          </div>
+          </section>
+
+
+        </section>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="aiConfigModal" class="modal-backdrop" hidden>
+      <section class="modal-card ai-config-modal" aria-label="AI配置">
+        <div class="modal-head">
+          <div>
+            <p class="section-kicker">AI Config</p>
+            <h2>AI错题识别设置</h2>
+          </div>
+          <button class="icon-btn" id="closeAiConfig" type="button" aria-label="关闭AI设置">×</button>
+        </div>
+        <label class="modal-field">
+          API Key
+          <input id="aiApiKeyInput" type="text" placeholder="输入阿里云百炼 API Key，仅保存在本机浏览器" autocomplete="off" />
+        </label>
+        <label class="modal-field">
+          模型
+          <input id="aiModelInput" type="text" value="qwen3-vl-plus" />
+        </label>
+        <label class="modal-field">
+          Base URL
+          <input id="aiBaseUrlInput" type="text" value="https://dashscope.aliyuncs.com/compatible-mode/v1" placeholder="例如：https://dashscope.aliyuncs.com/compatible-mode/v1" />
+        </label>
+        <label class="modal-field">
+          接口类型
+          <select id="aiApiModeInput">
+            <option value="chat">阿里云百炼 / 兼容 Chat Completions</option>
+            <option value="responses">OpenAI Responses</option>
+          </select>
+        </label>
+        <div class="modal-actions">
+          <button id="saveAiConfig" class="primary-btn" type="button">保存配置</button>
+          <button id="clearAiConfig" class="ghost-btn" type="button">清除</button>
+        </div>
+        <p class="modal-note">本地静态网页会把密钥保存在当前浏览器，不会写入代码文件。正式上线建议改成后端代理接口。</p>
+      </section>
+    </div>
+
+    <div id="mistakeResultModal" class="modal-backdrop" hidden>
+      <section class="modal-card mistake-result-modal" aria-label="AI错题识别结果">
+        <div class="modal-head">
+          <div>
+            <p class="section-kicker">AI Mistake</p>
+            <h2 id="mistakeResultTitle">错题整理</h2>
+          </div>
+          <button class="icon-btn" id="closeMistakeResult" type="button" aria-label="关闭错题结果">×</button>
+        </div>
+        <img id="mistakeResultImage" class="mistake-result-image" alt="错题照片" hidden />
+        <div id="mistakeImageTools" class="mistake-image-tools" hidden>
+          <button id="rotateMistakeLeft" class="ghost-btn" type="button">左转</button>
+          <button id="rotateMistakeRight" class="ghost-btn" type="button">右转</button>
+          <button id="enhanceMistakeImage" class="primary-btn" type="button">智能高清</button>
+          <button id="restoreMistakeImage" class="ghost-btn" type="button">恢复原图</button>
+        </div>
+        <div id="mistakeImageEditor" class="mistake-image-editor" hidden>
+          <label>亮度 <input id="mistakeBrightness" type="range" min="70" max="140" value="100" /></label>
+          <label>对比度 <input id="mistakeContrast" type="range" min="70" max="160" value="100" /></label>
+          <label>清晰度 <input id="mistakeSharpness" type="range" min="0" max="80" value="28" /></label>
+          <button id="applyMistakeEdit" class="primary-btn" type="button">应用编辑</button>
+          <label>裁剪比例
+            <select id="mistakeCropRatio">
+              <option value="free">保留当前比例</option>
+              <option value="1">1:1</option>
+              <option value="1.333333">4:3</option>
+              <option value="1.777778">16:9</option>
+              <option value="0.75">3:4</option>
+            </select>
+          </label>
+          <button id="cropMistakeImage" class="ghost-btn" type="button">裁剪中间区域</button>
+        </div>
+        <label class="modal-field">
+          识别出的错题
+          <textarea id="mistakeRecognizedText" rows="4"></textarea>
+        </label>
+        <label class="modal-field">
+          AI整理
+          <textarea id="mistakeSummaryText" rows="3"></textarea>
+        </label>
+        <div>
+          <h3 class="modal-subtitle">同类型练习题</h3>
+          <ol id="mistakeSimilarList" class="modal-question-list"></ol>
+        </div>
+        <div class="modal-actions">
+          <button id="reanalyzeMistake" class="primary-btn" type="button">开始AI识别</button>
+          <label class="ghost-btn modal-upload-btn">
+            重新拍照
+            <input id="retakeMistakePhoto" type="file" accept="image/*" capture="environment" />
+          </label>
+        </div>
+      </section>
+    </div>
+    <div id="mistakeImagePreviewModal" class="modal-backdrop image-preview-backdrop" hidden>
+      <section class="image-preview-card" aria-label="错题图片大图预览">
+        <button class="icon-btn image-preview-close" id="closeMistakeImagePreview" type="button" aria-label="关闭图片预览">×</button>
+        <div id="mistakeCropStage" class="mistake-crop-stage">
+          <img id="mistakeImagePreview" class="mistake-image-preview" alt="错题照片大图" />
+          <div id="mistakeCropBox" class="mistake-crop-box" aria-label="裁剪框">
+            <span class="crop-handle crop-handle-nw" data-crop-handle="nw"></span>
+            <span class="crop-handle crop-handle-n" data-crop-handle="n"></span>
+            <span class="crop-handle crop-handle-ne" data-crop-handle="ne"></span>
+            <span class="crop-handle crop-handle-e" data-crop-handle="e"></span>
+            <span class="crop-handle crop-handle-sw" data-crop-handle="sw"></span>
+            <span class="crop-handle crop-handle-s" data-crop-handle="s"></span>
+            <span class="crop-handle crop-handle-se" data-crop-handle="se"></span>
+            <span class="crop-handle crop-handle-w" data-crop-handle="w"></span>
+          </div>
+        </div>
+        <div class="image-preview-actions">
+          <select id="previewCropRatio" aria-label="大图裁剪比例">
+            <option value="free">自由比例</option>
+            <option value="1">1:1</option>
+            <option value="1.333333">4:3</option>
+            <option value="1.777778">16:9</option>
+            <option value="0.75">3:4</option>
+          </select>
+          <button id="applyPreviewCrop" class="primary-btn" type="button">应用裁剪</button>
+          <button id="resetPreviewCrop" class="ghost-btn" type="button">重置裁剪框</button>
+        </div>
+      </section>
+    </div>
+    <audio id="alarmSound" preload="auto">
+      <source src="data:audio/wav;base64,UklGRpQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YXAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=" type="audio/wav" />
+    </audio>
+    <script src="app.js"></script>
+  </body>
+</html>

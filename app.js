@@ -301,7 +301,9 @@ async function requestJavaApi(path, options = {}) {
   };
   console.log("[Java接口请求]", JSON.stringify(requestLog, null, 2));
 
-  const response = await fetch(url, options);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const response = await fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timeout));
   const text = await response.text();
   let payload = null;
   try {
@@ -339,6 +341,17 @@ function showAuthMessage(message) {
   elements.authMessage.textContent = message;
 }
 
+function setAuthLoading(isLoading, label = "") {
+  elements.authSubmit.disabled = isLoading;
+  if (isLoading) {
+    elements.authSubmit.dataset.idleText = elements.authSubmit.textContent;
+    elements.authSubmit.textContent = label || "处理中...";
+    return;
+  }
+  elements.authSubmit.textContent = elements.authSubmit.dataset.idleText || elements.authSubmit.textContent;
+  delete elements.authSubmit.dataset.idleText;
+}
+
 function loadSignedInState() {
   const nextState = loadState();
   Object.keys(state).forEach((key) => delete state[key]);
@@ -363,10 +376,12 @@ function finishAuth(authPayload) {
 
 async function handleAuthSubmit(event) {
   event.preventDefault();
+  if (elements.authSubmit.disabled) return;
   try {
     const mode = elements.authForm.dataset.mode || "login";
     const phone = normalizePhone(elements.authPhone.value);
     const password = elements.authPassword.value;
+    showAuthMessage("");
 
     if (!/^1\d{10}$/.test(phone)) {
       showAuthMessage("请输入有效的11位手机号。");
@@ -377,11 +392,25 @@ async function handleAuthSubmit(event) {
       return;
     }
 
-    const authPayload = await requestJavaApi(mode === "register" ? "/api/auth/register" : "/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, password }),
-    });
+    setAuthLoading(true, mode === "register" ? "注册中..." : "登录中...");
+    let authPayload;
+    try {
+      authPayload = await requestJavaApi(mode === "register" ? "/api/auth/register" : "/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password }),
+      });
+    } catch (error) {
+      const users = readAuthUsers();
+      const canMigrateLocalUser = mode === "login" && users[phone]?.password === password;
+      if (!canMigrateLocalUser) throw error;
+      console.log("[账号迁移]", `本地账号 ${phone} 自动注册到 Java 接口`);
+      authPayload = await requestJavaApi("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password }),
+      });
+    }
 
     if (mode === "register") {
       const users = readAuthUsers();
@@ -396,7 +425,16 @@ async function handleAuthSubmit(event) {
     finishAuth(authPayload);
   } catch (error) {
     console.error(error);
-    showAuthMessage(error instanceof Error ? error.message : "登录注册接口请求失败。");
+    const message =
+      error?.name === "AbortError"
+        ? "登录接口超时，请确认 Java 服务已启动。"
+        : error instanceof Error
+          ? error.message
+          : "登录注册接口请求失败。";
+    showAuthMessage(message);
+    showToast(message);
+  } finally {
+    setAuthLoading(false);
   }
 }
 

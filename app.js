@@ -44,7 +44,7 @@ const todayKey = () => {
 };
 
 const $ = (selector) => document.querySelector(selector);
-const currentUser = loadCurrentUser();
+let currentUser = loadCurrentUser();
 const state = loadState();
 let timer = null;
 let mode = "focus";
@@ -266,45 +266,72 @@ function showAuthMessage(message) {
   elements.authMessage.textContent = message;
 }
 
+function loadSignedInState() {
+  const nextState = loadState();
+  Object.keys(state).forEach((key) => delete state[key]);
+  Object.assign(state, nextState);
+}
+
+function finishAuth(phone) {
+  currentUser = { phone };
+  localStorage.setItem(AUTH_SESSION_KEY, phone);
+  loadSignedInState();
+  elements.authPhone.value = "";
+  elements.authPassword.value = "";
+  renderAuthState();
+  syncSettingsInputs();
+  renderAll();
+  showToast("已登录。");
+}
+
 function handleAuthSubmit(event) {
   event.preventDefault();
-  const mode = elements.authForm.dataset.mode || "login";
-  const phone = normalizePhone(elements.authPhone.value);
-  const password = elements.authPassword.value;
+  try {
+    const mode = elements.authForm.dataset.mode || "login";
+    const phone = normalizePhone(elements.authPhone.value);
+    const password = elements.authPassword.value;
 
-  if (!/^1\d{10}$/.test(phone)) {
-    showAuthMessage("请输入有效的11位手机号。");
-    return;
-  }
-  if (password.length < 6) {
-    showAuthMessage("密码至少需要6位。");
-    return;
-  }
-
-  const users = readAuthUsers();
-  if (mode === "register") {
-    if (users[phone]) {
-      showAuthMessage("这个手机号已经注册，请直接登录。");
+    if (!/^1\d{10}$/.test(phone)) {
+      showAuthMessage("请输入有效的11位手机号。");
       return;
     }
-    users[phone] = {
-      phone,
-      password,
-      createdAt: new Date().toISOString(),
-    };
-    saveAuthUsers(users);
-  } else if (!users[phone] || users[phone].password !== password) {
-    showAuthMessage("手机号或密码不正确。");
-    return;
-  }
+    if (password.length < 6) {
+      showAuthMessage("密码至少需要6位。");
+      return;
+    }
 
-  localStorage.setItem(AUTH_SESSION_KEY, phone);
-  window.location.reload();
+    const users = readAuthUsers();
+    if (mode === "register") {
+      if (users[phone]) {
+        showAuthMessage("这个手机号已经注册，请直接登录。");
+        return;
+      }
+      users[phone] = {
+        phone,
+        password,
+        createdAt: new Date().toISOString(),
+      };
+      saveAuthUsers(users);
+    } else if (!users[phone] || users[phone].password !== password) {
+      showAuthMessage("手机号或密码不正确。");
+      return;
+    }
+
+    finishAuth(phone);
+  } catch (error) {
+    console.error(error);
+    showAuthMessage("浏览器本地存储不可用，请换用 http://127.0.0.1:8765/index.html 打开。");
+  }
 }
 
 function logout() {
   localStorage.removeItem(AUTH_SESSION_KEY);
-  window.location.reload();
+  currentUser = null;
+  loadSignedInState();
+  setAuthMode("login");
+  renderAuthState();
+  syncSettingsInputs();
+  renderAll();
 }
 
 function renderAuthState() {

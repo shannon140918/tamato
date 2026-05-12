@@ -85,9 +85,7 @@ const elements = {
   profileScholarship: $("#profileScholarship"),
   profileDataFile: $("#profileDataFile"),
   profileLogoutBtn: $("#profileLogoutBtn"),
-  accountBtn: $("#accountBtn"),
   deleteAccountBtn: $("#deleteAccountBtn"),
-  accountPhone: $("#accountPhone"),
   weekday: $("#weekday"),
   todayDate: $("#todayDate"),
   aiSettingsBtn: $("#aiSettingsBtn"),
@@ -420,8 +418,7 @@ function resetDeleteAccountConfirm() {
   pendingDeleteAccountPhone = "";
   if (!elements?.deleteAccountBtn) return;
   elements.deleteAccountBtn.classList.remove("confirming");
-  elements.deleteAccountBtn.querySelector("strong").textContent = "注销";
-  elements.deleteAccountBtn.querySelector("small").textContent = "删除本地数据";
+  elements.deleteAccountBtn.textContent = "注销账号";
 }
 
 function deleteCurrentAccount() {
@@ -434,8 +431,7 @@ function deleteCurrentAccount() {
   if (pendingDeleteAccountPhone !== phone) {
     pendingDeleteAccountPhone = phone;
     elements.deleteAccountBtn.classList.add("confirming");
-    elements.deleteAccountBtn.querySelector("strong").textContent = "确认注销";
-    elements.deleteAccountBtn.querySelector("small").textContent = "再次点击";
+    elements.deleteAccountBtn.textContent = "确认注销";
     showToast(`再次点击“确认注销”将删除账号 ${phone}。`);
     clearTimeout(deleteAccountConfirmTimer);
     deleteAccountConfirmTimer = setTimeout(resetDeleteAccountConfirm, 6000);
@@ -468,7 +464,6 @@ function renderAuthState() {
   const isSignedIn = Boolean(currentUser);
   elements.authScreen.hidden = isSignedIn;
   document.body.classList.toggle("auth-locked", !isSignedIn);
-  elements.accountPhone.textContent = isSignedIn ? currentUser.phone : "未登录";
   elements.deleteAccountBtn.disabled = !isSignedIn;
   elements.profileAvatarBtn.disabled = !isSignedIn;
   renderProfileInfo();
@@ -2210,7 +2205,6 @@ function bindEvents() {
     if (event.target === elements.profileModal) closeProfileModal();
   });
   elements.profileLogoutBtn.addEventListener("click", logout);
-  elements.accountBtn.addEventListener("click", logout);
   elements.deleteAccountBtn.addEventListener("click", deleteCurrentAccount);
 
   elements.openPlanFromGoal.addEventListener("click", () => {

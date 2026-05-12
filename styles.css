@@ -239,12 +239,6 @@ button:focus-visible {
   line-height: 1.55;
 }
 
-.account-card strong {
-  max-width: 132px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .profile-avatar-btn {
   width: 64px;
   min-width: 64px;
@@ -397,26 +391,24 @@ button:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.delete-account-card {
-  border-color: #fecaca !important;
-  background: #fff7f7 !important;
-  color: #991b1b !important;
+.danger-btn {
+  border: 0;
+  border-radius: 14px;
+  background: #dc2626;
+  color: #ffffff;
+  min-height: 44px;
+  padding: 0 18px;
+  font-weight: 900;
+  box-shadow: 0 10px 24px rgba(220, 38, 38, 0.18);
 }
 
-.delete-account-card.confirming {
-  background: #fee2e2 !important;
-  box-shadow: 0 10px 24px rgba(153, 27, 27, 0.16);
+.danger-btn.confirming {
+  background: #991b1b;
 }
 
-.delete-account-card:disabled {
+.danger-btn:disabled {
   cursor: not-allowed;
   opacity: 0.55;
-  transform: none;
-}
-
-.delete-account-card:disabled:hover {
-  border-color: #fecaca !important;
-  box-shadow: var(--shadow);
 }
 
 .eyebrow,

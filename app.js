@@ -4,6 +4,7 @@ const AUTH_SESSION_KEY = "daily-focus-session-v1";
 const AI_CONFIG_KEY = "daily-focus-ai-config-v1";
 const BACKEND_STATE_URL = "/api/state";
 const ACCOUNT_STATE_API_PREFIX = "/api/accounts";
+const JAVA_AUTH_BASE_URL = "http://127.0.0.1:8787";
 const DEFAULT_AI_MODEL = "qwen3-vl-plus";
 const DEFAULT_AI_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
 const DEFAULT_AI_API_MODE = "chat";
@@ -244,9 +245,15 @@ function normalizePhone(value) {
 
 function loadCurrentUser() {
   try {
-    const phone = normalizePhone(localStorage.getItem(AUTH_SESSION_KEY));
-    const users = readAuthUsers();
-    return phone && users[phone] ? { phone } : null;
+    const saved = localStorage.getItem(AUTH_SESSION_KEY);
+    if (!saved) return null;
+    if (saved.trim().startsWith("{")) {
+      const session = JSON.parse(saved);
+      const phone = normalizePhone(session.phone);
+      const token = String(session.token || "").trim();
+      return phone && token ? { phone, token } : null;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -261,8 +268,50 @@ function canUseLocalBackend() {
 }
 
 function getBackendStateUrl() {
-  if (currentUser) return `${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`;
+  if (currentUser) return `${JAVA_AUTH_BASE_URL}${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`;
   return BACKEND_STATE_URL;
+}
+
+function getAuthHeaders(extraHeaders = {}) {
+  const headers = { ...extraHeaders };
+  if (currentUser?.token) headers.Authorization = `Bearer ${currentUser.token}`;
+  return headers;
+}
+
+async function requestJavaApi(path, options = {}) {
+  const url = `${JAVA_AUTH_BASE_URL}${path}`;
+  const method = options.method || "GET";
+  const requestBody = options.body ? JSON.parse(options.body) : null;
+  const requestLog = {
+    url,
+    method,
+    headers: options.headers || {},
+    body: requestBody,
+  };
+  console.log("[Java接口请求]", JSON.stringify(requestLog, null, 2));
+
+  const response = await fetch(url, options);
+  const text = await response.text();
+  let payload = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = text;
+  }
+
+  const responseLog = {
+    url,
+    method,
+    status: response.status,
+    ok: response.ok,
+    body: payload,
+  };
+  console.log("[Java接口返回]", JSON.stringify(responseLog, null, 2));
+
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `接口请求失败：${response.status}`);
+  }
+  return payload;
 }
 
 function setAuthMode(mode) {
@@ -285,9 +334,12 @@ function loadSignedInState() {
   Object.assign(state, nextState);
 }
 
-function finishAuth(phone) {
-  currentUser = { phone };
-  localStorage.setItem(AUTH_SESSION_KEY, phone);
+function finishAuth(authPayload) {
+  currentUser = {
+    phone: authPayload.phone,
+    token: authPayload.token,
+  };
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(currentUser));
   loadSignedInState();
   elements.authPhone.value = "";
   elements.authPassword.value = "";
@@ -298,7 +350,7 @@ function finishAuth(phone) {
   showToast("已登录。");
 }
 
-function handleAuthSubmit(event) {
+async function handleAuthSubmit(event) {
   event.preventDefault();
   try {
     const mode = elements.authForm.dataset.mode || "login";
@@ -314,27 +366,26 @@ function handleAuthSubmit(event) {
       return;
     }
 
-    const users = readAuthUsers();
+    const authPayload = await requestJavaApi(mode === "register" ? "/api/auth/register" : "/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, password }),
+    });
+
     if (mode === "register") {
-      if (users[phone]) {
-        showAuthMessage("这个手机号已经注册，请直接登录。");
-        return;
-      }
+      const users = readAuthUsers();
       users[phone] = {
         phone,
         password,
         createdAt: new Date().toISOString(),
       };
       saveAuthUsers(users);
-    } else if (!users[phone] || users[phone].password !== password) {
-      showAuthMessage("手机号或密码不正确。");
-      return;
     }
 
-    finishAuth(phone);
+    finishAuth(authPayload);
   } catch (error) {
     console.error(error);
-    showAuthMessage("浏览器本地存储不可用，请换用 http://127.0.0.1:8765/index.html 打开。");
+    showAuthMessage(error instanceof Error ? error.message : "登录注册接口请求失败。");
   }
 }
 
@@ -378,19 +429,25 @@ function deleteCurrentAccount() {
   }
 
   resetDeleteAccountConfirm();
-  const users = readAuthUsers();
-  delete users[phone];
-  saveAuthUsers(users);
-  localStorage.removeItem(AUTH_SESSION_KEY);
-  localStorage.removeItem(`${BASE_STORAGE_KEY}:${phone}`);
-  deleteBackendAccountState(phone);
-  currentUser = null;
-  loadSignedInState();
-  setAuthMode("login");
-  renderAuthState();
-  syncSettingsInputs();
-  renderAll();
-  showAuthMessage("账号已注销，请重新注册或登录。");
+  deleteBackendAccountState(phone)
+    .then(() => {
+      const users = readAuthUsers();
+      delete users[phone];
+      saveAuthUsers(users);
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      localStorage.removeItem(`${BASE_STORAGE_KEY}:${phone}`);
+      currentUser = null;
+      loadSignedInState();
+      setAuthMode("login");
+      renderAuthState();
+      syncSettingsInputs();
+      renderAll();
+      showAuthMessage("账号已注销，请重新注册或登录。");
+    })
+    .catch((error) => {
+      console.error(error);
+      showToast(error instanceof Error ? error.message : "注销接口请求失败。");
+    });
 }
 
 function renderAuthState() {
@@ -485,11 +542,19 @@ function queueBackendSave(delay = 250) {
   clearTimeout(backendSaveTimer);
   backendSaveTimer = setTimeout(async () => {
     try {
-      await fetch(getBackendStateUrl(), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state }),
-      });
+      if (currentUser) {
+        await requestJavaApi(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`, {
+          method: "PUT",
+          headers: getAuthHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ state }),
+        });
+      } else {
+        await fetch(getBackendStateUrl(), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state }),
+        });
+      }
     } catch (error) {
       console.warn("后端状态同步失败", error);
     }
@@ -499,9 +564,16 @@ function queueBackendSave(delay = 250) {
 async function loadBackendState() {
   if (!canUseLocalBackend()) return;
   try {
-    const response = await fetch(getBackendStateUrl(), { cache: "no-store" });
-    if (!response.ok) return;
-    const payload = await response.json();
+    let payload;
+    if (currentUser) {
+      payload = await requestJavaApi(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`, {
+        headers: getAuthHeaders(),
+      });
+    } else {
+      const response = await fetch(getBackendStateUrl(), { cache: "no-store" });
+      if (!response.ok) return;
+      payload = await response.json();
+    }
     if (!payload?.state) {
       queueBackendSave();
       return;
@@ -520,11 +592,10 @@ async function loadBackendState() {
 
 async function deleteBackendAccountState(phone) {
   if (!canUseLocalBackend()) return;
-  try {
-    await fetch(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(phone)}/state`, { method: "DELETE" });
-  } catch (error) {
-    console.warn("删除本地账号文件失败", error);
-  }
+  await requestJavaApi(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(phone)}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
 }
 
 function loadAiConfig() {

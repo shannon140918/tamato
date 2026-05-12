@@ -72,6 +72,19 @@ const elements = {
   authPassword: $("#authPassword"),
   authSubmit: $("#authSubmit"),
   authMessage: $("#authMessage"),
+  profileAvatarBtn: $("#profileAvatarBtn"),
+  profileModal: $("#profileModal"),
+  closeProfileModal: $("#closeProfileModal"),
+  profilePhone: $("#profilePhone"),
+  profileStatus: $("#profileStatus"),
+  profileTodoCount: $("#profileTodoCount"),
+  profileStars: $("#profileStars"),
+  profileReminderCount: $("#profileReminderCount"),
+  profilePlanCount: $("#profilePlanCount"),
+  profileGoalCount: $("#profileGoalCount"),
+  profileScholarship: $("#profileScholarship"),
+  profileDataFile: $("#profileDataFile"),
+  profileLogoutBtn: $("#profileLogoutBtn"),
   accountBtn: $("#accountBtn"),
   deleteAccountBtn: $("#deleteAccountBtn"),
   accountPhone: $("#accountPhone"),
@@ -391,6 +404,7 @@ async function handleAuthSubmit(event) {
 
 function logout() {
   resetDeleteAccountConfirm();
+  closeProfileModal();
   localStorage.removeItem(AUTH_SESSION_KEY);
   currentUser = null;
   loadSignedInState();
@@ -456,6 +470,42 @@ function renderAuthState() {
   document.body.classList.toggle("auth-locked", !isSignedIn);
   elements.accountPhone.textContent = isSignedIn ? currentUser.phone : "未登录";
   elements.deleteAccountBtn.disabled = !isSignedIn;
+  elements.profileAvatarBtn.disabled = !isSignedIn;
+  renderProfileInfo();
+}
+
+function openProfileModal() {
+  if (!currentUser) {
+    showToast("请先登录账号。");
+    return;
+  }
+  renderProfileInfo();
+  elements.profileModal.hidden = false;
+}
+
+function closeProfileModal() {
+  if (elements.profileModal) elements.profileModal.hidden = true;
+}
+
+function renderProfileInfo() {
+  if (!elements.profilePhone) return;
+  const isSignedIn = Boolean(currentUser);
+  const todoTotal = state.todos.length;
+  const todoDone = state.todos.filter((todo) => todo.done).length;
+  const todayPlans = state.studyPlans.filter((plan) => plan.date === todayKey()).length;
+  const dataFile = isSignedIn
+    ? `data/java-accounts/${currentUser.phone}.json`
+    : "未生成";
+
+  elements.profilePhone.textContent = isSignedIn ? currentUser.phone : "未登录";
+  elements.profileStatus.textContent = isSignedIn ? "Java 接口登录中" : "请先登录账号";
+  elements.profileTodoCount.textContent = `${todoDone}/${todoTotal}`;
+  elements.profileStars.textContent = String(Number(state.focusStars || 0));
+  elements.profileReminderCount.textContent = String(state.reminders.length);
+  elements.profilePlanCount.textContent = String(todayPlans);
+  elements.profileGoalCount.textContent = String(state.goals.length);
+  elements.profileScholarship.textContent = Number(state.scholarship?.balance || 0).toFixed(2);
+  elements.profileDataFile.textContent = dataFile;
 }
 
 function normalizeLoadedState(saved) {
@@ -2147,12 +2197,19 @@ function renderAll() {
   renderScholarship();
   renderCalendar();
   renderStudyPlans();
+  renderProfileInfo();
 }
 
 function bindEvents() {
   elements.loginTab.addEventListener("click", () => setAuthMode("login"));
   elements.registerTab.addEventListener("click", () => setAuthMode("register"));
   elements.authForm.addEventListener("submit", handleAuthSubmit);
+  elements.profileAvatarBtn.addEventListener("click", openProfileModal);
+  elements.closeProfileModal.addEventListener("click", closeProfileModal);
+  elements.profileModal.addEventListener("click", (event) => {
+    if (event.target === elements.profileModal) closeProfileModal();
+  });
+  elements.profileLogoutBtn.addEventListener("click", logout);
   elements.accountBtn.addEventListener("click", logout);
   elements.deleteAccountBtn.addEventListener("click", deleteCurrentAccount);
 

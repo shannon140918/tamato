@@ -49,6 +49,9 @@
           </div>
         </div>
         <div class="top-stats">
+          <button id="profileAvatarBtn" class="profile-avatar-btn" type="button" aria-label="查看个人信息">
+            <span class="profile-avatar-icon" aria-hidden="true"></span>
+          </button>
           <button id="accountBtn" class="account-card jump-card" type="button" aria-label="当前账号">
             <span>当前账号</span>
             <strong id="accountPhone">未登录</strong>
@@ -347,6 +350,57 @@
     </main>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="profileModal" class="modal-backdrop" hidden>
+      <section class="modal-card profile-modal-card" aria-label="个人信息">
+        <div class="modal-head">
+          <div>
+            <p class="section-kicker">Profile</p>
+            <h2>个人信息</h2>
+          </div>
+          <button class="icon-btn" id="closeProfileModal" type="button" aria-label="关闭个人信息">×</button>
+        </div>
+        <div class="profile-hero">
+          <span class="profile-avatar-large" aria-hidden="true"></span>
+          <div>
+            <p id="profilePhone" class="profile-phone">未登录</p>
+            <p id="profileStatus" class="profile-status">请先登录账号</p>
+          </div>
+        </div>
+        <dl class="profile-info-grid">
+          <div>
+            <dt>今日待办</dt>
+            <dd id="profileTodoCount">0/0</dd>
+          </div>
+          <div>
+            <dt>学习星星</dt>
+            <dd id="profileStars">0</dd>
+          </div>
+          <div>
+            <dt>提醒</dt>
+            <dd id="profileReminderCount">0</dd>
+          </div>
+          <div>
+            <dt>学习计划</dt>
+            <dd id="profilePlanCount">0</dd>
+          </div>
+          <div>
+            <dt>目标</dt>
+            <dd id="profileGoalCount">0</dd>
+          </div>
+          <div>
+            <dt>奖学金余额</dt>
+            <dd id="profileScholarship">0.00</dd>
+          </div>
+        </dl>
+        <div class="profile-file-box">
+          <span>本地数据文件</span>
+          <code id="profileDataFile">未生成</code>
+        </div>
+        <div class="modal-actions">
+          <button id="profileLogoutBtn" class="ghost-btn" type="button">退出登录</button>
+        </div>
+      </section>
+    </div>
     <div id="aiConfigModal" class="modal-backdrop" hidden>
       <section class="modal-card ai-config-modal" aria-label="AI配置">
         <div class="modal-head">

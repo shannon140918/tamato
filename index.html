@@ -41,7 +41,9 @@
     <main class="app-shell">
       <section class="topbar">
         <div class="brand-block">
-          <img class="brand-rocket" src="assets/study-buddy.svg" alt="" />
+          <button id="profileAvatarBtn" class="brand-avatar-btn" type="button" aria-label="查看个人信息">
+            <img class="brand-rocket" src="assets/study-buddy.svg" alt="" />
+          </button>
           <div>
             <p class="eyebrow">Study Base</p>
             <h1>学习小基地</h1>
@@ -49,9 +51,6 @@
           </div>
         </div>
         <div class="top-stats">
-          <button id="profileAvatarBtn" class="profile-avatar-btn" type="button" aria-label="查看个人信息">
-            <span class="profile-avatar-icon" aria-hidden="true"></span>
-          </button>
           <button id="accountBtn" class="account-card jump-card" type="button" aria-label="当前账号">
             <span>当前账号</span>
             <strong id="accountPhone">未登录</strong>

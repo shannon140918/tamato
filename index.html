@@ -10,6 +10,34 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <section id="authScreen" class="auth-screen" hidden aria-label="注册登录">
+      <div class="auth-card">
+        <div class="auth-brand">
+          <img class="auth-logo" src="assets/study-buddy.svg" alt="" />
+          <div>
+            <p class="section-kicker">Account</p>
+            <h1>账号登录</h1>
+          </div>
+        </div>
+        <div class="auth-tabs" role="tablist" aria-label="账号操作">
+          <button id="loginTab" class="auth-tab active" type="button">登录</button>
+          <button id="registerTab" class="auth-tab" type="button">注册</button>
+        </div>
+        <form id="authForm" class="auth-form">
+          <label>
+            手机号
+            <input id="authPhone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="请输入11位手机号" />
+          </label>
+          <label>
+            密码
+            <input id="authPassword" type="password" autocomplete="current-password" placeholder="至少6位密码" />
+          </label>
+          <button id="authSubmit" class="primary-btn" type="submit">登录</button>
+        </form>
+        <p id="authMessage" class="auth-message" role="status"></p>
+        <p class="auth-note">测试账号只保存在当前浏览器本地，不会上传到服务器。</p>
+      </div>
+    </section>
     <main class="app-shell">
       <section class="topbar">
         <div class="brand-block">
@@ -21,6 +49,11 @@
           </div>
         </div>
         <div class="top-stats">
+          <button id="accountBtn" class="account-card jump-card" type="button" aria-label="当前账号">
+            <span>当前账号</span>
+            <strong id="accountPhone">未登录</strong>
+            <small id="logoutText">退出</small>
+          </button>
           <button id="aiSettingsBtn" class="ai-settings-card jump-card" type="button" aria-label="配置AI错题识别">
             <span>AI错题</span>
             <strong id="aiStatusText">未配置</strong>

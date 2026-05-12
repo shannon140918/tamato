@@ -1,4 +1,6 @@
-const STORAGE_KEY = "daily-focus-app-v1";
+const BASE_STORAGE_KEY = "daily-focus-app-v1";
+const AUTH_USERS_KEY = "daily-focus-users-v1";
+const AUTH_SESSION_KEY = "daily-focus-session-v1";
 const AI_CONFIG_KEY = "daily-focus-ai-config-v1";
 const BACKEND_STATE_URL = "/api/state";
 const DEFAULT_AI_MODEL = "qwen3-vl-plus";
@@ -42,6 +44,7 @@ const todayKey = () => {
 };
 
 const $ = (selector) => document.querySelector(selector);
+const currentUser = loadCurrentUser();
 const state = loadState();
 let timer = null;
 let mode = "focus";
@@ -57,6 +60,16 @@ let mistakeTipIndex = 0;
 let activeMistakeTodoId = "";
 
 const elements = {
+  authScreen: $("#authScreen"),
+  loginTab: $("#loginTab"),
+  registerTab: $("#registerTab"),
+  authForm: $("#authForm"),
+  authPhone: $("#authPhone"),
+  authPassword: $("#authPassword"),
+  authSubmit: $("#authSubmit"),
+  authMessage: $("#authMessage"),
+  accountBtn: $("#accountBtn"),
+  accountPhone: $("#accountPhone"),
   weekday: $("#weekday"),
   todayDate: $("#todayDate"),
   aiSettingsBtn: $("#aiSettingsBtn"),
@@ -208,6 +221,99 @@ function createDefaultState() {
   };
 }
 
+function readAuthUsers() {
+  try {
+    const users = JSON.parse(localStorage.getItem(AUTH_USERS_KEY));
+    return users && typeof users === "object" ? users : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAuthUsers(users) {
+  localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
+}
+
+function normalizePhone(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function loadCurrentUser() {
+  try {
+    const phone = normalizePhone(localStorage.getItem(AUTH_SESSION_KEY));
+    const users = readAuthUsers();
+    return phone && users[phone] ? { phone } : null;
+  } catch {
+    return null;
+  }
+}
+
+function getStateStorageKey() {
+  return currentUser ? `${BASE_STORAGE_KEY}:${currentUser.phone}` : BASE_STORAGE_KEY;
+}
+
+function setAuthMode(mode) {
+  const isRegister = mode === "register";
+  elements.loginTab.classList.toggle("active", !isRegister);
+  elements.registerTab.classList.toggle("active", isRegister);
+  elements.authSubmit.textContent = isRegister ? "注册并登录" : "登录";
+  elements.authForm.dataset.mode = isRegister ? "register" : "login";
+  elements.authPassword.autocomplete = isRegister ? "new-password" : "current-password";
+  elements.authMessage.textContent = "";
+}
+
+function showAuthMessage(message) {
+  elements.authMessage.textContent = message;
+}
+
+function handleAuthSubmit(event) {
+  event.preventDefault();
+  const mode = elements.authForm.dataset.mode || "login";
+  const phone = normalizePhone(elements.authPhone.value);
+  const password = elements.authPassword.value;
+
+  if (!/^1\d{10}$/.test(phone)) {
+    showAuthMessage("请输入有效的11位手机号。");
+    return;
+  }
+  if (password.length < 6) {
+    showAuthMessage("密码至少需要6位。");
+    return;
+  }
+
+  const users = readAuthUsers();
+  if (mode === "register") {
+    if (users[phone]) {
+      showAuthMessage("这个手机号已经注册，请直接登录。");
+      return;
+    }
+    users[phone] = {
+      phone,
+      password,
+      createdAt: new Date().toISOString(),
+    };
+    saveAuthUsers(users);
+  } else if (!users[phone] || users[phone].password !== password) {
+    showAuthMessage("手机号或密码不正确。");
+    return;
+  }
+
+  localStorage.setItem(AUTH_SESSION_KEY, phone);
+  window.location.reload();
+}
+
+function logout() {
+  localStorage.removeItem(AUTH_SESSION_KEY);
+  window.location.reload();
+}
+
+function renderAuthState() {
+  const isSignedIn = Boolean(currentUser);
+  elements.authScreen.hidden = isSignedIn;
+  document.body.classList.toggle("auth-locked", !isSignedIn);
+  elements.accountPhone.textContent = isSignedIn ? currentUser.phone : "未登录";
+}
+
 function normalizeLoadedState(saved) {
   const fallback = createDefaultState();
   if (!saved || typeof saved !== "object") return fallback;
@@ -246,7 +352,7 @@ function normalizeLoadedState(saved) {
 
 function loadState() {
   try {
-    return normalizeLoadedState(JSON.parse(localStorage.getItem(STORAGE_KEY)));
+    return normalizeLoadedState(JSON.parse(localStorage.getItem(getStateStorageKey())));
   } catch {
     return createDefaultState();
   }
@@ -267,7 +373,7 @@ function normalizeMistakeTips(savedTips) {
 
 function saveState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(getStateStorageKey(), JSON.stringify(state));
   } catch (error) {
     const isQuotaError =
       error?.name === "QuotaExceededError" ||
@@ -281,13 +387,14 @@ function saveState() {
         todo.mistake.imageCleared = true;
       }
     });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(getStateStorageKey(), JSON.stringify(state));
     showToast("本地存储空间已满，已清理错题照片缓存，任务已保存。");
   }
   queueBackendSave();
 }
 
 function queueBackendSave() {
+  if (currentUser) return;
   if (!location.protocol.startsWith("http")) return;
   clearTimeout(backendSaveTimer);
   backendSaveTimer = setTimeout(async () => {
@@ -304,6 +411,7 @@ function queueBackendSave() {
 }
 
 async function loadBackendState() {
+  if (currentUser) return;
   if (!location.protocol.startsWith("http")) return;
   try {
     const response = await fetch(BACKEND_STATE_URL, { cache: "no-store" });
@@ -317,7 +425,7 @@ async function loadBackendState() {
     const backendState = normalizeLoadedState(payload.state);
     Object.keys(state).forEach((key) => delete state[key]);
     Object.assign(state, backendState);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(getStateStorageKey(), JSON.stringify(state));
     syncSettingsInputs();
     renderAll();
   } catch (error) {
@@ -1877,6 +1985,11 @@ function renderAll() {
 }
 
 function bindEvents() {
+  elements.loginTab.addEventListener("click", () => setAuthMode("login"));
+  elements.registerTab.addEventListener("click", () => setAuthMode("register"));
+  elements.authForm.addEventListener("submit", handleAuthSubmit);
+  elements.accountBtn.addEventListener("click", logout);
+
   elements.openPlanFromGoal.addEventListener("click", () => {
     selectedPlanDate = todayKey();
     calendarCursor = new Date();
@@ -2181,7 +2294,9 @@ function bindEvents() {
 
 try {
   document.documentElement.dataset.appReady = "booting";
+  setAuthMode("login");
   bindEvents();
+  renderAuthState();
   renderAll();
   loadBackendState();
   setInterval(checkReminders, 1000);

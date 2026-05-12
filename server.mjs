@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 8765);
 const dataDir = path.join(root, "data");
+const accountDataDir = path.join(dataDir, "accounts");
 const stateFile = path.join(dataDir, "app-state.json");
 const databaseFile = path.join(dataDir, "daily-focus.sqlite");
 const mimeTypes = {
@@ -61,6 +62,93 @@ function readRequestBody(request) {
     request.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     request.on("error", reject);
   });
+}
+
+function getAccountFile(phone) {
+  const normalized = String(phone || "").replace(/\D/g, "");
+  if (!/^1\d{10}$/.test(normalized)) return null;
+  return path.join(accountDataDir, `${normalized}.json`);
+}
+
+async function readAccountState(phone, response) {
+  const accountFile = getAccountFile(phone);
+  if (!accountFile) {
+    response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ error: { message: "手机号格式不正确。" } }));
+    return;
+  }
+
+  try {
+    const payload = JSON.parse(await readFile(accountFile, "utf8"));
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(
+      JSON.stringify({
+        state: payload?.state || null,
+        phone: payload?.phone || phone,
+        updatedAt: payload?.updatedAt || null,
+      })
+    );
+  } catch {
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ state: null, phone, updatedAt: null }));
+  }
+}
+
+async function writeAccountState(phone, request, response) {
+  const accountFile = getAccountFile(phone);
+  if (!accountFile) {
+    response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ error: { message: "手机号格式不正确。" } }));
+    return;
+  }
+
+  try {
+    const payload = JSON.parse((await readRequestBody(request)) || "{}");
+    if (!payload || typeof payload.state !== "object" || Array.isArray(payload.state)) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: { message: "状态数据格式不正确。" } }));
+      return;
+    }
+
+    const updatedAt = new Date().toISOString();
+    await mkdir(accountDataDir, { recursive: true });
+    await writeFile(
+      accountFile,
+      JSON.stringify(
+        {
+          phone,
+          updatedAt,
+          state: payload.state,
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ ok: true, file: path.relative(root, accountFile), updatedAt }));
+  } catch (error) {
+    response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ error: { message: `保存账号数据失败：${error.message}` } }));
+  }
+}
+
+async function deleteAccountState(phone, response) {
+  const accountFile = getAccountFile(phone);
+  if (!accountFile) {
+    response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ error: { message: "手机号格式不正确。" } }));
+    return;
+  }
+
+  try {
+    await rm(accountFile, { force: true });
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ ok: true }));
+  } catch (error) {
+    response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ error: { message: `删除账号数据失败：${error.message}` } }));
+  }
 }
 
 async function proxyDashScope(request, response) {
@@ -165,6 +253,23 @@ async function serveStatic(request, response) {
 
 const server = createServer(async (request, response) => {
   const route = request.url?.split("?")[0];
+  const accountStateMatch = route?.match(/^\/api\/accounts\/(\d{11})\/state$/);
+  if (accountStateMatch) {
+    const phone = accountStateMatch[1];
+    if (request.method === "GET") {
+      await readAccountState(phone, response);
+      return;
+    }
+    if (request.method === "PUT") {
+      await writeAccountState(phone, request, response);
+      return;
+    }
+    if (request.method === "DELETE") {
+      await deleteAccountState(phone, response);
+      return;
+    }
+  }
+
   if (request.method === "GET" && route === "/api/health") {
     const db = await getDatabase();
     const row = db.prepare("SELECT updated_at FROM app_state WHERE id = ?").get("main");

@@ -3,6 +3,7 @@ const AUTH_USERS_KEY = "daily-focus-users-v1";
 const AUTH_SESSION_KEY = "daily-focus-session-v1";
 const AI_CONFIG_KEY = "daily-focus-ai-config-v1";
 const BACKEND_STATE_URL = "/api/state";
+const ACCOUNT_STATE_API_PREFIX = "/api/accounts";
 const DEFAULT_AI_MODEL = "qwen3-vl-plus";
 const DEFAULT_AI_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
 const DEFAULT_AI_API_MODE = "chat";
@@ -255,6 +256,15 @@ function getStateStorageKey() {
   return currentUser ? `${BASE_STORAGE_KEY}:${currentUser.phone}` : BASE_STORAGE_KEY;
 }
 
+function canUseLocalBackend() {
+  return location.protocol.startsWith("http") && /^(127\.0\.0\.1|localhost)$/i.test(location.hostname);
+}
+
+function getBackendStateUrl() {
+  if (currentUser) return `${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`;
+  return BACKEND_STATE_URL;
+}
+
 function setAuthMode(mode) {
   const isRegister = mode === "register";
   elements.loginTab.classList.toggle("active", !isRegister);
@@ -284,6 +294,7 @@ function finishAuth(phone) {
   renderAuthState();
   syncSettingsInputs();
   renderAll();
+  loadBackendState();
   showToast("已登录。");
 }
 
@@ -372,6 +383,7 @@ function deleteCurrentAccount() {
   saveAuthUsers(users);
   localStorage.removeItem(AUTH_SESSION_KEY);
   localStorage.removeItem(`${BASE_STORAGE_KEY}:${phone}`);
+  deleteBackendAccountState(phone);
   currentUser = null;
   loadSignedInState();
   setAuthMode("login");
@@ -468,13 +480,12 @@ function saveState() {
   queueBackendSave();
 }
 
-function queueBackendSave() {
-  if (currentUser) return;
-  if (!location.protocol.startsWith("http")) return;
+function queueBackendSave(delay = 250) {
+  if (!canUseLocalBackend()) return;
   clearTimeout(backendSaveTimer);
   backendSaveTimer = setTimeout(async () => {
     try {
-      await fetch(BACKEND_STATE_URL, {
+      await fetch(getBackendStateUrl(), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ state }),
@@ -482,14 +493,13 @@ function queueBackendSave() {
     } catch (error) {
       console.warn("后端状态同步失败", error);
     }
-  }, 250);
+  }, delay);
 }
 
 async function loadBackendState() {
-  if (currentUser) return;
-  if (!location.protocol.startsWith("http")) return;
+  if (!canUseLocalBackend()) return;
   try {
-    const response = await fetch(BACKEND_STATE_URL, { cache: "no-store" });
+    const response = await fetch(getBackendStateUrl(), { cache: "no-store" });
     if (!response.ok) return;
     const payload = await response.json();
     if (!payload?.state) {
@@ -505,6 +515,15 @@ async function loadBackendState() {
     renderAll();
   } catch (error) {
     console.warn("读取后端状态失败", error);
+  }
+}
+
+async function deleteBackendAccountState(phone) {
+  if (!canUseLocalBackend()) return;
+  try {
+    await fetch(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(phone)}/state`, { method: "DELETE" });
+  } catch (error) {
+    console.warn("删除本地账号文件失败", error);
   }
 }
 

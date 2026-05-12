@@ -53,6 +53,8 @@ let totalSeconds = remainingSeconds;
 let isRunning = false;
 let toastTimer = null;
 let backendSaveTimer = null;
+let deleteAccountConfirmTimer = null;
+let pendingDeleteAccountPhone = "";
 let cropDrag = null;
 let selectedPlanDate = todayKey();
 let calendarCursor = new Date();
@@ -69,6 +71,7 @@ const elements = {
   authSubmit: $("#authSubmit"),
   authMessage: $("#authMessage"),
   accountBtn: $("#accountBtn"),
+  deleteAccountBtn: $("#deleteAccountBtn"),
   accountPhone: $("#accountPhone"),
   weekday: $("#weekday"),
   todayDate: $("#todayDate"),
@@ -325,6 +328,7 @@ function handleAuthSubmit(event) {
 }
 
 function logout() {
+  resetDeleteAccountConfirm();
   localStorage.removeItem(AUTH_SESSION_KEY);
   currentUser = null;
   loadSignedInState();
@@ -334,11 +338,55 @@ function logout() {
   renderAll();
 }
 
+function resetDeleteAccountConfirm() {
+  clearTimeout(deleteAccountConfirmTimer);
+  deleteAccountConfirmTimer = null;
+  pendingDeleteAccountPhone = "";
+  if (!elements?.deleteAccountBtn) return;
+  elements.deleteAccountBtn.classList.remove("confirming");
+  elements.deleteAccountBtn.querySelector("strong").textContent = "注销";
+  elements.deleteAccountBtn.querySelector("small").textContent = "删除本地数据";
+}
+
+function deleteCurrentAccount() {
+  if (!currentUser) {
+    showToast("请先登录账号。");
+    return;
+  }
+
+  const phone = currentUser.phone;
+  if (pendingDeleteAccountPhone !== phone) {
+    pendingDeleteAccountPhone = phone;
+    elements.deleteAccountBtn.classList.add("confirming");
+    elements.deleteAccountBtn.querySelector("strong").textContent = "确认注销";
+    elements.deleteAccountBtn.querySelector("small").textContent = "再次点击";
+    showToast(`再次点击“确认注销”将删除账号 ${phone}。`);
+    clearTimeout(deleteAccountConfirmTimer);
+    deleteAccountConfirmTimer = setTimeout(resetDeleteAccountConfirm, 6000);
+    return;
+  }
+
+  resetDeleteAccountConfirm();
+  const users = readAuthUsers();
+  delete users[phone];
+  saveAuthUsers(users);
+  localStorage.removeItem(AUTH_SESSION_KEY);
+  localStorage.removeItem(`${BASE_STORAGE_KEY}:${phone}`);
+  currentUser = null;
+  loadSignedInState();
+  setAuthMode("login");
+  renderAuthState();
+  syncSettingsInputs();
+  renderAll();
+  showAuthMessage("账号已注销，请重新注册或登录。");
+}
+
 function renderAuthState() {
   const isSignedIn = Boolean(currentUser);
   elements.authScreen.hidden = isSignedIn;
   document.body.classList.toggle("auth-locked", !isSignedIn);
   elements.accountPhone.textContent = isSignedIn ? currentUser.phone : "未登录";
+  elements.deleteAccountBtn.disabled = !isSignedIn;
 }
 
 function normalizeLoadedState(saved) {
@@ -2016,6 +2064,7 @@ function bindEvents() {
   elements.registerTab.addEventListener("click", () => setAuthMode("register"));
   elements.authForm.addEventListener("submit", handleAuthSubmit);
   elements.accountBtn.addEventListener("click", logout);
+  elements.deleteAccountBtn.addEventListener("click", deleteCurrentAccount);
 
   elements.openPlanFromGoal.addEventListener("click", () => {
     selectedPlanDate = todayKey();

@@ -223,6 +223,28 @@ button:focus-visible {
   text-overflow: ellipsis;
 }
 
+.delete-account-card {
+  border-color: #fecaca !important;
+  background: #fff7f7 !important;
+  color: #991b1b !important;
+}
+
+.delete-account-card.confirming {
+  background: #fee2e2 !important;
+  box-shadow: 0 10px 24px rgba(153, 27, 27, 0.16);
+}
+
+.delete-account-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.delete-account-card:disabled:hover {
+  border-color: #fecaca !important;
+  box-shadow: var(--shadow);
+}
+
 .eyebrow,
 .section-kicker {
   margin: 0 0 6px;

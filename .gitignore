@@ -1,4 +1,5 @@
 data/
+java-auth-server/target/
 *.log
 .DS_Store
 Thumbs.db

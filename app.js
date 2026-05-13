@@ -72,6 +72,7 @@ const elements = {
   authPassword: $("#authPassword"),
   authSubmit: $("#authSubmit"),
   authMessage: $("#authMessage"),
+  authHelp: $("#authHelp"),
   profileAvatarBtn: $("#profileAvatarBtn"),
   profileModal: $("#profileModal"),
   closeProfileModal: $("#closeProfileModal"),
@@ -334,11 +335,13 @@ function setAuthMode(mode) {
   elements.authSubmit.textContent = isRegister ? "注册并登录" : "登录";
   elements.authForm.dataset.mode = isRegister ? "register" : "login";
   elements.authPassword.autocomplete = isRegister ? "new-password" : "current-password";
-  elements.authMessage.textContent = "";
+  showAuthMessage("", "info");
+  clearAuthFieldErrors();
 }
 
-function showAuthMessage(message) {
+function showAuthMessage(message, type = "error") {
   elements.authMessage.textContent = message;
+  elements.authMessage.dataset.type = type;
 }
 
 function setAuthLoading(isLoading, label = "") {
@@ -350,6 +353,28 @@ function setAuthLoading(isLoading, label = "") {
   }
   elements.authSubmit.textContent = elements.authSubmit.dataset.idleText || elements.authSubmit.textContent;
   delete elements.authSubmit.dataset.idleText;
+}
+
+function clearAuthFieldErrors() {
+  [elements.authPhone, elements.authPassword].forEach((input) => {
+    input.removeAttribute("aria-invalid");
+  });
+}
+
+function markAuthFieldError(input) {
+  input.setAttribute("aria-invalid", "true");
+  input.focus();
+}
+
+function getJavaErrorMessage(error, mode) {
+  const action = mode === "register" ? "注册" : "登录";
+  if (error?.name === "AbortError") return `${action}接口超时，请确认 Java 服务已启动。`;
+  if (error instanceof TypeError) return `无法连接${action}接口，请先运行 java-auth-server\\run.bat。`;
+  if (!(error instanceof Error)) return `${action}接口请求失败，请稍后重试。`;
+  if (error.message.includes("手机号已注册")) return "这个手机号已经注册，请切换到登录。";
+  if (error.message.includes("手机号或密码不正确")) return "手机号或密码不正确；如果还没有账号，请先注册。";
+  if (error.message.includes("请先登录")) return "登录状态已失效，请重新登录。";
+  return error.message || `${action}接口请求失败，请稍后重试。`;
 }
 
 function loadSignedInState() {
@@ -377,22 +402,26 @@ function finishAuth(authPayload) {
 async function handleAuthSubmit(event) {
   event.preventDefault();
   if (elements.authSubmit.disabled) return;
+  const mode = elements.authForm.dataset.mode || "login";
   try {
-    const mode = elements.authForm.dataset.mode || "login";
     const phone = normalizePhone(elements.authPhone.value);
     const password = elements.authPassword.value;
-    showAuthMessage("");
+    showAuthMessage("", "info");
+    clearAuthFieldErrors();
 
     if (!/^1\d{10}$/.test(phone)) {
-      showAuthMessage("请输入有效的11位手机号。");
+      showAuthMessage("请输入有效的11位手机号，例如 13800138000。");
+      markAuthFieldError(elements.authPhone);
       return;
     }
     if (password.length < 6) {
-      showAuthMessage("密码至少需要6位。");
+      showAuthMessage("密码至少需要6位，请重新输入。");
+      markAuthFieldError(elements.authPassword);
       return;
     }
 
     setAuthLoading(true, mode === "register" ? "注册中..." : "登录中...");
+    showAuthMessage(mode === "register" ? "正在提交注册信息..." : "正在登录，请稍等...", "info");
     let authPayload;
     try {
       authPayload = await requestJavaApi(mode === "register" ? "/api/auth/register" : "/api/auth/login", {
@@ -404,6 +433,7 @@ async function handleAuthSubmit(event) {
       const users = readAuthUsers();
       const canMigrateLocalUser = mode === "login" && users[phone]?.password === password;
       if (!canMigrateLocalUser) throw error;
+      showAuthMessage("检测到旧本地账号，正在迁移到 Java 接口...", "info");
       console.log("[账号迁移]", `本地账号 ${phone} 自动注册到 Java 接口`);
       authPayload = await requestJavaApi("/api/auth/register", {
         method: "POST",
@@ -423,16 +453,14 @@ async function handleAuthSubmit(event) {
     }
 
     finishAuth(authPayload);
+    showAuthMessage(mode === "register" ? "注册成功，已登录。" : "登录成功。", "success");
   } catch (error) {
     console.error(error);
-    const message =
-      error?.name === "AbortError"
-        ? "登录接口超时，请确认 Java 服务已启动。"
-        : error instanceof Error
-          ? error.message
-          : "登录注册接口请求失败。";
+    const message = getJavaErrorMessage(error, mode);
     showAuthMessage(message);
     showToast(message);
+    if (message.includes("手机号")) markAuthFieldError(elements.authPhone);
+    if (message.includes("密码")) markAuthFieldError(elements.authPassword);
   } finally {
     setAuthLoading(false);
   }

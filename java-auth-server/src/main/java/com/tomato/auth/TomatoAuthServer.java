@@ -402,7 +402,7 @@ public final class TomatoAuthServer {
   }
 
   private static void sendError(HttpExchange exchange, int status, String message) throws IOException {
-    sendJson(exchange, status, "{\"error\":{\"message\":\"" + escapeJson(message) + "\"}}");
+    sendJson(exchange, status, "{\"error\":{\"status\":" + status + ",\"message\":\"" + escapeJson(message) + "\"}}");
   }
 
   private static void sendJson(HttpExchange exchange, int status, String body) throws IOException {

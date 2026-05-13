@@ -26,15 +26,16 @@
         <form id="authForm" class="auth-form">
           <label>
             手机号
-            <input id="authPhone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="请输入11位手机号" />
+            <input id="authPhone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="请输入11位手机号" aria-describedby="authMessage" />
           </label>
           <label>
             密码
-            <input id="authPassword" type="password" autocomplete="current-password" placeholder="至少6位密码" />
+            <input id="authPassword" type="password" autocomplete="current-password" placeholder="至少6位密码" aria-describedby="authMessage" />
           </label>
           <button id="authSubmit" class="primary-btn" type="submit">登录</button>
         </form>
         <p id="authMessage" class="auth-message" role="status"></p>
+        <p id="authHelp" class="auth-help">登录和注册需要本地 Java 接口运行在 http://127.0.0.1:8787。</p>
         <p class="auth-note">测试账号只保存在当前浏览器本地，不会上传到服务器。</p>
       </div>
     </section>

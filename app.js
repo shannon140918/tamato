@@ -4,7 +4,7 @@ const AUTH_SESSION_KEY = "daily-focus-session-v1";
 const AI_CONFIG_KEY = "daily-focus-ai-config-v1";
 const BACKEND_STATE_URL = "/api/state";
 const ACCOUNT_STATE_API_PREFIX = "/api/accounts";
-const JAVA_AUTH_BASE_URL = "http://127.0.0.1:8787";
+const DATABASE_API_BASE_URL = "";
 const DEFAULT_AI_MODEL = "qwen3-vl-plus";
 const DEFAULT_AI_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
 const DEFAULT_AI_API_MODE = "chat";
@@ -280,7 +280,7 @@ function canUseLocalBackend() {
 }
 
 function getBackendStateUrl() {
-  if (currentUser) return `${JAVA_AUTH_BASE_URL}${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`;
+  if (currentUser) return `${DATABASE_API_BASE_URL}${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`;
   return BACKEND_STATE_URL;
 }
 
@@ -290,8 +290,8 @@ function getAuthHeaders(extraHeaders = {}) {
   return headers;
 }
 
-async function requestJavaApi(path, options = {}) {
-  const url = `${JAVA_AUTH_BASE_URL}${path}`;
+async function requestDatabaseApi(path, options = {}) {
+  const url = `${DATABASE_API_BASE_URL}${path}`;
   const method = options.method || "GET";
   const requestBody = options.body ? JSON.parse(options.body) : null;
   const requestLog = {
@@ -300,7 +300,7 @@ async function requestJavaApi(path, options = {}) {
     headers: options.headers || {},
     body: requestBody,
   };
-  console.log("[Java接口请求]", JSON.stringify(requestLog, null, 2));
+  console.log("[数据库接口请求]", JSON.stringify(requestLog, null, 2));
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
@@ -320,7 +320,7 @@ async function requestJavaApi(path, options = {}) {
     ok: response.ok,
     body: payload,
   };
-  console.log("[Java接口返回]", JSON.stringify(responseLog, null, 2));
+  console.log("[数据库接口返回]", JSON.stringify(responseLog, null, 2));
 
   if (!response.ok) {
     throw new Error(payload?.error?.message || `接口请求失败：${response.status}`);
@@ -366,10 +366,10 @@ function markAuthFieldError(input) {
   input.focus();
 }
 
-function getJavaErrorMessage(error, mode) {
+function getDatabaseErrorMessage(error, mode) {
   const action = mode === "register" ? "注册" : "登录";
-  if (error?.name === "AbortError") return `${action}接口超时，请确认 Java 服务已启动。`;
-  if (error instanceof TypeError) return `无法连接${action}接口，请先运行 java-auth-server\\run.bat。`;
+  if (error?.name === "AbortError") return `${action}接口超时，请确认本地服务已启动。`;
+  if (error instanceof TypeError) return `无法连接${action}接口，请先运行 node server.mjs。`;
   if (!(error instanceof Error)) return `${action}接口请求失败，请稍后重试。`;
   if (error.message.includes("手机号已注册")) return "这个手机号已经注册，请切换到登录。";
   if (error.message.includes("手机号或密码不正确")) return "手机号或密码不正确；如果还没有账号，请先注册。";
@@ -424,7 +424,7 @@ async function handleAuthSubmit(event) {
     showAuthMessage(mode === "register" ? "正在提交注册信息..." : "正在登录，请稍等...", "info");
     let authPayload;
     try {
-      authPayload = await requestJavaApi(mode === "register" ? "/api/auth/register" : "/api/auth/login", {
+      authPayload = await requestDatabaseApi(mode === "register" ? "/api/auth/register" : "/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, password }),
@@ -433,9 +433,9 @@ async function handleAuthSubmit(event) {
       const users = readAuthUsers();
       const canMigrateLocalUser = mode === "login" && users[phone]?.password === password;
       if (!canMigrateLocalUser) throw error;
-      showAuthMessage("检测到旧本地账号，正在迁移到 Java 接口...", "info");
-      console.log("[账号迁移]", `本地账号 ${phone} 自动注册到 Java 接口`);
-      authPayload = await requestJavaApi("/api/auth/register", {
+      showAuthMessage("检测到旧本地账号，正在迁移到数据库接口...", "info");
+      console.log("[账号迁移]", `本地账号 ${phone} 自动注册到数据库接口`);
+      authPayload = await requestDatabaseApi("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, password }),
@@ -456,7 +456,7 @@ async function handleAuthSubmit(event) {
     showAuthMessage(mode === "register" ? "注册成功，已登录。" : "登录成功。", "success");
   } catch (error) {
     console.error(error);
-    const message = getJavaErrorMessage(error, mode);
+    const message = getDatabaseErrorMessage(error, mode);
     showAuthMessage(message);
     showToast(message);
     if (message.includes("手机号")) markAuthFieldError(elements.authPhone);
@@ -555,11 +555,11 @@ function renderProfileInfo() {
   const todoDone = state.todos.filter((todo) => todo.done).length;
   const todayPlans = state.studyPlans.filter((plan) => plan.date === todayKey()).length;
   const dataFile = isSignedIn
-    ? `data/java-accounts/${currentUser.phone}.json`
+    ? `data/daily-focus.sqlite -> account_state/${currentUser.phone}`
     : "未生成";
 
   elements.profilePhone.textContent = isSignedIn ? currentUser.phone : "未登录";
-  elements.profileStatus.textContent = isSignedIn ? "Java 接口登录中" : "请先登录账号";
+  elements.profileStatus.textContent = isSignedIn ? "数据库接口登录中" : "请先登录账号";
   elements.profileTodoCount.textContent = `${todoDone}/${todoTotal}`;
   elements.profileStars.textContent = String(Number(state.focusStars || 0));
   elements.profileReminderCount.textContent = String(state.reminders.length);
@@ -654,7 +654,7 @@ function queueBackendSave(delay = 250) {
   backendSaveTimer = setTimeout(async () => {
     try {
       if (currentUser) {
-        await requestJavaApi(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`, {
+        await requestDatabaseApi(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`, {
           method: "PUT",
           headers: getAuthHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ state }),
@@ -677,7 +677,7 @@ async function loadBackendState() {
   try {
     let payload;
     if (currentUser) {
-      payload = await requestJavaApi(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`, {
+      payload = await requestDatabaseApi(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(currentUser.phone)}/state`, {
         headers: getAuthHeaders(),
       });
     } else {
@@ -698,12 +698,22 @@ async function loadBackendState() {
     renderAll();
   } catch (error) {
     console.warn("读取后端状态失败", error);
+    if (currentUser && error instanceof Error && error.message.includes("请先登录")) {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      currentUser = null;
+      loadSignedInState();
+      setAuthMode("login");
+      renderAuthState();
+      syncSettingsInputs();
+      renderAll();
+      showAuthMessage("登录状态已过期，请重新登录。");
+    }
   }
 }
 
 async function deleteBackendAccountState(phone) {
   if (!canUseLocalBackend()) return;
-  await requestJavaApi(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(phone)}`, {
+  await requestDatabaseApi(`${ACCOUNT_STATE_API_PREFIX}/${encodeURIComponent(phone)}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });

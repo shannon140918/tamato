@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" role="img" aria-label="清新森林背景">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#e7f7e1"/>
+      <stop offset="0.44" stop-color="#c8edc2"/>
+      <stop offset="1" stop-color="#72bc7a"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.28" cy="0.2" r="0.56">
+      <stop offset="0" stop-color="#fff8cf" stop-opacity="0.96"/>
+      <stop offset="0.34" stop-color="#f7efb5" stop-opacity="0.58"/>
+      <stop offset="1" stop-color="#f7efb5" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="leafLight" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f4fad8"/>
+      <stop offset="1" stop-color="#7bbd66"/>
+    </linearGradient>
+    <linearGradient id="leafDeep" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#d8f3c6"/>
+      <stop offset="1" stop-color="#3c915d"/>
+    </linearGradient>
+    <filter id="softBlur">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+  <rect width="900" height="620" fill="url(#sky)"/>
+  <rect width="900" height="620" fill="url(#sun)"/>
+  <g opacity=".3" filter="url(#softBlur)">
+    <circle cx="118" cy="86" r="72" fill="#fff9d8"/>
+    <circle cx="244" cy="150" r="125" fill="#eaf7c9"/>
+    <circle cx="676" cy="106" r="94" fill="#d7f0c8"/>
+  </g>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".44">
+    <path d="M42 522c103-146 220-216 354-232 132-15 238-79 410-208" stroke="#f7f5c8" stroke-width="26"/>
+    <path d="M-12 604c128-128 266-189 414-188 118 0 228-50 400-168" stroke="#5aa767" stroke-width="34" opacity=".5"/>
+  </g>
+  <g opacity=".88">
+    <path d="M-34 620c86-99 199-142 316-123 105 17 180 64 290 47 101-16 173-84 354-93v169H-34Z" fill="#70b66b" opacity=".72"/>
+    <path d="M-18 620c98-67 195-97 288-82 94 15 161 50 253 35 110-18 201-66 397-72v119H-18Z" fill="#39875a" opacity=".56"/>
+  </g>
+  <g fill="url(#leafLight)" opacity=".84">
+    <ellipse cx="118" cy="150" rx="72" ry="22" transform="rotate(-31 118 150)"/>
+    <ellipse cx="190" cy="198" rx="82" ry="23" transform="rotate(24 190 198)"/>
+    <ellipse cx="724" cy="118" rx="76" ry="22" transform="rotate(28 724 118)"/>
+    <ellipse cx="780" cy="184" rx="92" ry="24" transform="rotate(-22 780 184)"/>
+  </g>
+  <g fill="url(#leafDeep)" opacity=".6">
+    <ellipse cx="342" cy="112" rx="54" ry="16" transform="rotate(-38 342 112)"/>
+    <ellipse cx="424" cy="156" rx="62" ry="17" transform="rotate(29 424 156)"/>
+    <ellipse cx="548" cy="98" rx="58" ry="16" transform="rotate(-20 548 98)"/>
+    <ellipse cx="635" cy="270" rx="64" ry="18" transform="rotate(15 635 270)"/>
+  </g>
+  <rect width="900" height="620" fill="#f7f1c5" opacity=".08"/>
+</svg>

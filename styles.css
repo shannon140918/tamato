@@ -840,8 +840,9 @@ h2 {
 
 .timer-actions {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1.05fr) repeat(3, minmax(0, 0.82fr));
   gap: 10px;
+  align-items: stretch;
 }
 
 .primary-btn {
@@ -873,6 +874,33 @@ h2 {
 
 .ghost-btn {
   min-height: 48px;
+}
+
+#startPauseBtn {
+  justify-self: start;
+  width: 100%;
+  max-width: 232px;
+}
+
+#resetBtn {
+  border-color: #d7e4ef;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+  color: #41556f;
+  font-weight: 800;
+  letter-spacing: 0;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+#resetBtn:hover {
+  border-color: #bfd3e4;
+  background: linear-gradient(180deg, #ffffff 0%, #eef5fa 100%);
+  color: #30465f;
+  transform: translateY(-1px);
+}
+
+#resetBtn:active {
+  transform: translateY(0);
 }
 
 .settings-grid {
@@ -2524,6 +2552,10 @@ h2 {
   .primary-btn,
   .ghost-btn {
     min-height: 46px;
+  }
+
+  #startPauseBtn {
+    max-width: none;
   }
 
   .todo-item,

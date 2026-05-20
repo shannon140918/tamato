@@ -104,6 +104,7 @@ const elements = {
   focusMessage: $("#focusMessage"),
   progressRing: $("#progressRing"),
   startPauseBtn: $("#startPauseBtn"),
+  pauseBtn: $("#pauseBtn"),
   resetBtn: $("#resetBtn"),
   skipBtn: $("#skipBtn"),
   focusMinutes: $("#focusMinutes"),
@@ -1659,6 +1660,7 @@ function renderTimer() {
   elements.timerStatus.textContent =
     activeTodo && mode === "focus" ? `${statusPrefix} · ${activeTodo.text}` : statusPrefix;
   elements.startPauseBtn.textContent = isRunning ? "暂停" : "开始";
+  elements.pauseBtn.disabled = !isRunning;
   elements.pomodoroCount.textContent = state.completedPomodoros;
   elements.focusStars.textContent = state.focusStars;
   renderFocusMessage();
@@ -2412,9 +2414,9 @@ function bindEvents() {
   });
 
   elements.startPauseBtn.addEventListener("click", () => {
-    if (isRunning) pauseTimer();
-    else startTimer();
+    startTimer();
   });
+  elements.pauseBtn.addEventListener("click", pauseTimer);
 
   elements.resetBtn.addEventListener("click", () => setMode(mode));
   elements.skipBtn.addEventListener("click", () => completeTimer(false));
